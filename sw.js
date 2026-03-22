@@ -1,8 +1,7 @@
 const CACHE_NAME = 'dji-flight-log-v1';
 const urlsToCache = [
-  '/dji_log_analyzer_pwa.html',
-  '/manifest.json',
-  '/'
+  './index.html',
+  './manifest.json'
 ];
 
 // インストール時
