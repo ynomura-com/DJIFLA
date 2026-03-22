@@ -565,8 +565,8 @@
                 flightTimeFormatted = flightTimeMinutes ? `${String(flightTimeMinutes).padStart(2, '0')}` : '-';
             }
             
-            const maxAltitude = flightData.maxAltitude ? `${flightData.maxAltitude} ft` : '-';
-            const maxSpeed = flightData.maxSpeed ? `${flightData.maxSpeed} MPH` : '-';
+            const maxAltitude = flightData.maxAltitude ? `${Math.ceil(flightData.maxAltitude * 0.3048)} m` : '-';
+            const maxSpeed = flightData.maxSpeed ? `${Math.ceil(flightData.maxSpeed * 1.609)} Km/H` : '-';
             const droneModel = flightData.droneModel;
             const dataPoints = flightData.dataPoints.length;
 
