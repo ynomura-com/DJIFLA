@@ -569,9 +569,12 @@
             const maxSpeed = flightData.maxSpeed ? `${Math.ceil(flightData.maxSpeed * 1.609)}` : '-';
             const droneModel = flightData.droneModel;
             const dataPoints = flightData.dataPoints.length;
+            // ファイル名から日付を取り出して整形
+            const dataDate = document.getElementById('csvFile').value.split('_')[1].replaceAll('-','/');
 
-            const header = '離陸時刻\t着陸時刻\t飛行時間(分)\t最大高度(m)\t最大速度(Km/h)\tドローン名称\tデータポイント';
-            const data = `${takeoffTimeFormatted}\t${landingTimeFormatted}\t${flightTimeFormatted}\t${maxAltitude}\t${maxSpeed}\t${droneModel}\t${dataPoints}`;
+
+            const header = '日付\t離陸時刻\t着陸時刻\t飛行時間(分)\t最大高度(m)\t最大速度(Km/h)\tドローン名称\tデータポイント';
+            const data = `${dataDate}\t${takeoffTimeFormatted}\t${landingTimeFormatted}\t${flightTimeFormatted}\t${maxAltitude}\t${maxSpeed}\t${droneModel}\t${dataPoints}`;
             const tsv = `${header}\n${data}`;
 
             navigator.clipboard.writeText(tsv).then(() => {
