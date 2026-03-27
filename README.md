@@ -30,6 +30,11 @@ https://www.phantomhelp.com/logviewer/upload/
 
 スプレッドシートに貼り付けます。
 
+## AppleScript 版を追加しました
+同じように csv に変換済みのファイルを解析して、日誌に必要なデータを取り出す機能を AppleScript で書いたものを追加しました。
+
+
+
 他にもファイルがある場合は、「クリア」ボタンを押して繰り返します。
 
 
