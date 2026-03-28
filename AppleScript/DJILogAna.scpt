@@ -1,12 +1,40 @@
--- Analizer for DJI Flight Log data
--- ファイル選択ダイアログ
-set csvFile to choose file with prompt "CSVファイルを選択してください" of type {"csv", "text"}
+-- 1. ZIPファイル選択ダイアログ
+set zipFile to choose file with prompt "解凍して処理するZIPファイルを選択してください" of type {"zip"}
 
--- ファイル内容の読み込み
-set csvText to read csvFile as «class utf8»
+-- 2. 解凍先の一時フォルダを作成
+set zipPath to quoted form of POSIX path of zipFile
+set tmpDir to do shell script "mktemp -d /tmp/drone_unzip.XXXXXX"
+
+try
+	-- 3. ZIPファイルを解凍
+	do shell script "unzip " & zipPath & " -d " & quoted form of tmpDir
+	
+	-- 4. 解凍されたフォルダ内からCSVファイルを探す
+	set csvPath to do shell script "find " & quoted form of tmpDir & " -name '*.csv' | head -n 1"
+	
+	if csvPath is "" then
+		error "ZIPファイルの中にCSVファイルが見つかりませんでした。"
+	end if
+	
+	-- 5. ファイル内容の読み込み (POSIX path を alias に変換して読み込む)
+	set csvFileAlias to (POSIX file csvPath) as alias
+	set csvText to read csvFileAlias as «class utf8»
+	
+	-- 一時フォルダの削除（読み込みが終わったので）
+	do shell script "rm -rf " & quoted form of tmpDir
+	
+on error errMsg
+	-- エラーが発生した場合は一時フォルダを削除して終了
+	do shell script "rm -rf " & quoted form of tmpDir
+	display dialog "エラーが発生しました: " & errMsg buttons {"OK"} default button 1
+	return
+end try
+
+-- --- ここから先は以前と同じCSV解析ロジック ---
+
 set allLines to paragraphs of csvText
 
--- 空行を除去して有効な行だけを抽出
+-- 空行を除去
 set cleanedLines to {}
 repeat with aLine in allLines
 	if length of aLine > 0 then
@@ -21,15 +49,15 @@ end repeat
 -- item (last): 最後のデータ行（その他の集計データ用）
 
 set headerLine to item 2 of cleanedLines
-set firstDataLine to item 3 of cleanedLines -- データ開始行
-set lastDataLine to item (count of cleanedLines) of cleanedLines -- 最終データ行
+set firstDataLine to item 3 of cleanedLines
+set lastDataLine to item (count of cleanedLines) of cleanedLines
 
 -- CSVの各項目をリストに分解
 set headers to splitCSV(headerLine)
 set firstDataValues to splitCSV(firstDataLine)
 set lastDataValues to splitCSV(lastDataLine)
 
--- 各項目のインデックス（列番号）を取得
+-- インデックス取得
 set idxDate to getColumnIndex(headers, "CUSTOM.date [local]")
 set idxTime to getColumnIndex(headers, "CUSTOM.updateTime [local]")
 set idxFlyTime to getColumnIndex(headers, "OSD.flyTime")
@@ -38,20 +66,19 @@ set idxSpeed to getColumnIndex(headers, "OSD.hSpeedMax [MPH]")
 set idxDroneName to getColumnIndex(headers, "RECOVER.aircraftName")
 
 -- データ抽出と変換
--- 1. ドローン名 (最終行から取得)
+-- 1. ドローン名
 set droneName to item idxDroneName of lastDataValues
 
--- 2. 離陸時刻 (データ開始行 = 3行目から取得)
-set rawStartDate to item idxDate of firstDataValues -- m/d/y
-set rawStartTime to item idxTime of firstDataValues -- h:m:s.s AM/PM
+-- 2. 離陸時刻 (3行目から取得)
+set rawStartDate to item idxDate of firstDataValues
+set rawStartTime to item idxTime of firstDataValues
 set gmtStartDate to parseDateTime(rawStartDate, rawStartTime)
-set jstStartDate to gmtStartDate + (9 * hours) -- 離陸時刻（JST）
+set jstStartDate to gmtStartDate + (9 * hours)
 
 -- 3. 飛行時間 (最終行から取得) と 着陸時刻の計算
-set flyTimeStr to item idxFlyTime of lastDataValues -- 例: "12m 34.5s"
+set flyTimeStr to item idxFlyTime of lastDataValues
 set totalSeconds to parseFlyTimeToSeconds(flyTimeStr)
--- 離陸時刻に総飛行時間を加算
-set jstLandingDate to jstStartDate + totalSeconds -- 着陸時刻（JST）
+set jstLandingDate to jstStartDate + totalSeconds
 
 -- 4. 最大高度 (ft -> m)
 set heightFt to item idxHeight of lastDataValues as number
@@ -74,11 +101,11 @@ set msg to "ドローン名: " & droneName & return & ¬
 -- 結果の表示
 display dialog msg buttons {"OK"} default button 1 with title "データ抽出完了"
 
--- OKボタンが押された後、内容をクリップボードにコピー
+-- クリップボードにコピー
 set the clipboard to msg
 
 ---------------------------------------------------------
--- サブルーチン（ハンドラ）
+-- ハンドラ群
 ---------------------------------------------------------
 
 on splitCSV(theText)
@@ -132,7 +159,6 @@ end parseDateTime
 on parseFlyTimeToSeconds(flyTimeStr)
 	set totalSec to 0
 	set AppleScript's text item delimiters to "m"
-	
 	if flyTimeStr contains "m" then
 		set minPart to text item 1 of flyTimeStr
 		set secPartRaw to text item 2 of flyTimeStr
@@ -140,7 +166,6 @@ on parseFlyTimeToSeconds(flyTimeStr)
 	else
 		set secPartRaw to flyTimeStr
 	end if
-	
 	set AppleScript's text item delimiters to "s"
 	if secPartRaw contains "s" then
 		set secPart to text item 1 of secPartRaw
@@ -148,7 +173,6 @@ on parseFlyTimeToSeconds(flyTimeStr)
 			set totalSec to totalSec + (secPart as number)
 		end try
 	end if
-	
 	set AppleScript's text item delimiters to ""
 	return totalSec
 end parseFlyTimeToSeconds
